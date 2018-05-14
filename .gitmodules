@@ -1,0 +1,12 @@
+[submodule "meterpu"]
+	path = meterpu
+	url = git@github.com:lilu09/meterpu.git
+[submodule "vectorpu"]
+	path = vectorpu
+	url = git@github.com:lilu09/vectorpu.git
+[submodule "tunerpu"]
+	path = tunerpu
+	url = git@github.com:lilu09/tunerpu.git
+[submodule "xpdl_compiler"]
+	path = xpdl_compiler
+	url = git@github.com:lilu09/xpdl_compiler.git
