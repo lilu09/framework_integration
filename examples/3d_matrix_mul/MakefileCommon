@@ -1,0 +1,1045 @@
+#Calculate target files based on source files found on the top level
+#If you want different type of source files,
+#then you can iterate all file type, thus ALL_FILES contains the files of those types,
+#then, everything follows should work without change.
+
+
+#MAKEFLAGS
+# {{{
+##NUMBER_OF_CORES:=$(shell cat /proc/cpuinfo | grep processor | wc -l)
+#NUMBER_OF_CORES:=$(shell grep -c ^processor /proc/cpuinfo)
+#NUMBER_PARALLEL_JOBS:=$(shell echo $(NUMBER_OF_CORES)*2 | bc)
+#MAKEFLAGS+="-j $(NUMBER_PARALLEL_JOBS) -l 99"
+# }}}
+
+#Module dependency
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring SYSTEM_ENERGY,$(MODULE_LOAD)))
+#replace SYSTEM_ENERGY with SYSTEM_ENERGY NVML and PCM, 
+#the code enabling flags are calculated
+#No SYSTEM_ENERGY CLAGS and LDFLAGS are added, since they are empty.
+MODULE_LOAD:=$(subst SYSTEM_ENERGY,SYSTEM_ENERGY NVML PCM,$(MODULE_LOAD))
+endif
+endif
+# }}}
+
+#Compiler variable
+# {{{
+MY_C_COMPILER:=gcc
+MY_CXX_COMPILER:=g++
+MY_CUDA_COMPILER:=nvcc
+# }}}
+
+#Machine
+# {{{
+M4800_COMPUTE_CAPABILITY:=-gencode arch=compute_30,code=sm_30
+EXCESS_COMPUTE_CAPABILITY:=-gencode arch=compute_35,code=sm_35
+# }}}
+
+#Library
+# {{{
+#Common flags: Excess machine configuration
+
+#Cublas
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring CUBLAS,$(MODULE_LOAD)))
+M4800_CUBLAS_INC_PATH:= 
+M4800_CUBLAS_LD_PATH:= 
+M4800_CUBLAS_LD_COMMAND:=-lcublas
+endif
+endif
+# }}}
+
+
+#Boost
+#TRIOLITH
+# {{{
+ifeq ($(MACHINE_NAME),TRIOLITH)
+ifneq (,$(findstring BOOST,$(MODULE_LOAD)))
+TRIOLITH_BOOST_INC_PATH:= /software/apps/boost/1.55.0/build06/include/
+TRIOLITH_BOOST_LD_PATH:= 
+TRIOLITH_BOOST_LD_COMMAND:= 
+endif
+endif
+# }}}
+
+#SOCI
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring SOCI,$(MODULE_LOAD)))
+EC+=-DHAVE_BOOST
+M4800_SOCI_INC_PATH:= /usr/include/soci/postgresql/ /usr/include/soci/ /usr/include/postgresql/
+M4800_SOCI_LD_PATH:= /usr/lib/x86_64-linux-gnu/
+M4800_SOCI_LD_COMMAND:= -lsoci_core -lsoci_postgresql
+endif
+endif
+# }}}
+
+#BLAS
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring BLAS,$(MODULE_LOAD)))
+M4800_BLAS_LD_COMMAND:=-lgslcblas
+endif
+endif
+# }}}
+
+#PARADISEO
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring PARADISEO,$(MODULE_LOAD)))
+M4800_PARADISEO_INC_PATH:= /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/071.Metaheuristic/0.Code/1.ParadisEO/ParadisEO-2.0/problems/ /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/071.Metaheuristic/0.Code/1.ParadisEO/ParadisEO-2.0/eo/src/ /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/071.Metaheuristic/0.Code/1.ParadisEO/ParadisEO-2.0/mo/src/
+M4800_PARADISEO_LD_PATH:= /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/071.Metaheuristic/0.Code/1.ParadisEO/ParadisEO-2.0/build/eo/lib/ /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/071.Metaheuristic/0.Code/1.ParadisEO/ParadisEO-2.0/build/moeo/lib/
+M4800_PARADISEO_LD_COMMAND:= -leo -lcma -les -lga -leoutils -lmoeo
+endif
+endif
+# }}}
+
+#QUASI_NEWTON_GPU
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring QUASI_NEWTON_GPU,$(MODULE_LOAD)))
+M4800_QUASI_NEWTON_GPU_INC_PATH:= /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/115.OptimizationMethods/2.NonlinearOptimization/0.Code/004.quasi_newton/1.solver/include
+M4800_QUASI_NEWTON_GPU_LD_PATH:=  /home/lu/Documents/Research/research_original_data/Common/9.KnowledgeSystem/1.Work/1.Computer/1.SingleComponent/1.Applications/115.OptimizationMethods/2.NonlinearOptimization/0.Code/004.quasi_newton//1.solver/build
+M4800_QUASI_NEWTON_GPU_LD_COMMAND:= -llbfgs
+endif
+endif
+# }}}
+
+
+#CLANG 3.7
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring CLANG_3_7,$(MODULE_LOAD)))
+LLVM_PATH:=/home/lu/Documents/Software/3.LLVM/3.7
+LLVM_SRC_PATH := $(LLVM_PATH)/llvm
+LLVM_BUILD_PATH := $(LLVM_PATH)/build
+LLVM_BIN_PATH := $(LLVM_PATH)/build/bin
+LLVM_CXXFLAGS := `$(LLVM_BIN_PATH)/llvm-config --cxxflags`
+LLVM_LDFLAGS := `$(LLVM_BIN_PATH)/llvm-config --ldflags --libs --system-libs`
+LLVM_LDFLAGS_NOLIBS := `$(LLVM_BIN_PATH)/llvm-config --ldflags`
+PLUGIN_CXXFLAGS := -fpic
+PLUGIN_LDFLAGS := -shared
+CLANG_INCLUDES := \
+	-I$(LLVM_SRC_PATH)/tools/clang/include \
+	-I$(LLVM_BUILD_PATH)/tools/clang/include
+EC+=-fno-rtti -O0 -g
+CLANG_LIBS := \
+	-Wl,--start-group \
+	-lclangAST \
+	-lclangAnalysis \
+	-lclangBasic \
+	-lclangDriver \
+	-lclangEdit \
+	-lclangFrontend \
+	-lclangFrontendTool \
+	-lclangLex \
+	-lclangParse \
+	-lclangSema \
+	-lclangEdit \
+	-lclangASTMatchers \
+	-lclangRewrite \
+	-lclangRewriteFrontend \
+	-lclangStaticAnalyzerFrontend \
+	-lclangStaticAnalyzerCheckers \
+	-lclangStaticAnalyzerCore \
+	-lclangSerialization \
+	-lclangToolingCore \
+	-lclangTooling \
+	-Wl,--end-group
+
+M4800_CLANG_3_7_INC_COMMAND := $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES)
+M4800_CLANG_3_7_LD_COMMAND := $(CLANG_LIBS) $(LLVM_LDFLAGS)
+endif
+endif
+# }}}
+
+
+#CLANG 3.9
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring CLANG_3_9,$(MODULE_LOAD)))
+LLVM_PATH:=/home/lu/Documents/Software/3.LLVM/3.9
+LLVM_SRC_PATH := $(LLVM_PATH)/llvm
+LLVM_BUILD_PATH := $(LLVM_PATH)/build
+LLVM_BIN_PATH := $(LLVM_PATH)/build/bin
+#LLVM_CXXFLAGS := `$(LLVM_BIN_PATH)/llvm-config --cxxflags`
+LLVM_CXXFLAGS := `llvm-config-3.9 --cxxflags`
+#LLVM_LDFLAGS := `$(LLVM_BIN_PATH)/llvm-config --ldflags --libs --system-libs`
+LLVM_LDFLAGS := `llvm-config-3.9 --ldflags --libs --system-libs`
+LLVM_LDFLAGS_NOLIBS := `$(LLVM_BIN_PATH)/llvm-config --ldflags`
+PLUGIN_CXXFLAGS := -fpic
+PLUGIN_LDFLAGS := -shared
+CLANG_INCLUDES := \
+	-I$(LLVM_SRC_PATH)/tools/clang/include \
+	-I$(LLVM_BUILD_PATH)/tools/clang/include
+EC+=-fno-rtti -O0 -g
+CLANG_LIBS := \
+	-Wl,--start-group \
+	-lclangAST \
+	-lclangAnalysis \
+	-lclangBasic \
+	-lclangDriver \
+	-lclangEdit \
+	-lclangFrontend \
+	-lclangFrontendTool \
+	-lclangLex \
+	-lclangParse \
+	-lclangSema \
+	-lclangEdit \
+	-lclangASTMatchers \
+	-lclangRewrite \
+	-lclangRewriteFrontend \
+	-lclangStaticAnalyzerFrontend \
+	-lclangStaticAnalyzerCheckers \
+	-lclangStaticAnalyzerCore \
+	-lclangSerialization \
+	-lclangToolingCore \
+	-lclangTooling \
+	-Wl,--end-group
+
+M4800_CLANG_3_9_INC_COMMAND := $(CXXFLAGS) $(LLVM_CXXFLAGS) $(CLANG_INCLUDES)
+M4800_CLANG_3_9_LD_COMMAND := $(CLANG_LIBS) $(LLVM_LDFLAGS)
+endif
+endif
+# }}}
+
+#SkePU++
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring SKEPUPP,$(MODULE_LOAD)))
+M4800_SKEPUPP_INC_PATH := /home/lu/Documents/Research/research_original_data/YearlyData/2015/020.SkePU_C++11/0.Code/1.Abstraction_0.1/5.SkePU++/lib/
+endif
+endif
+# }}}
+
+#VIENNACL
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring VIENNACL,$(MODULE_LOAD)))
+M4800_VIENNACL_INC_PATH := /home/lu/Documents/Research/research_original_data/YearlyData/2016/018.conditional_composition_journal/3.Experiments/1.sparse_matrix_conditional_composition/4.viennacl/ViennaCL-1.7.1
+M4800_VIENNACL_LD_PATH := /home/lu/Documents/Research/research_original_data/YearlyData/2016/018.conditional_composition_journal/3.Experiments/1.sparse_matrix_conditional_composition/4.viennacl/1.ViennaCL_build_dir/libviennacl
+M4800_VIENNACL_LD_COMMAND := -lviennacl
+endif
+endif
+# }}}
+
+#OpenCL
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring OPENCL,$(MODULE_LOAD)))
+EXCESS_OPENCL_INC_PATH := /usr/local/cuda-6.0/include
+EXCESS_OPENCL_LD_COMMAND := -lOpenCL
+endif
+endif
+# }}}
+
+#OpenCL
+#M4800
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring OPENCL,$(MODULE_LOAD)))
+M4800_OPENCL_LD_COMMAND := -lOpenCL
+endif
+endif
+# }}}
+
+#OpenGL
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring OPENGL,$(MODULE_LOAD)))
+EXCESS_OPENGL_LD_COMMAND += -lglut -lGL
+endif
+endif
+# }}}
+
+#CUPTI
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring CUPTI,$(MODULE_LOAD)))
+EXCESS_CUPTI_PATH:=/usr/local/cuda-6.0/extras/CUPTI
+EXCESS_CUPTI_INC_PATH:=$(EXCESS_CUPTI_PATH)/include
+EXCESS_CUPTI_LD_PATH:=$(EXCESS_CUPTI_PATH)/lib64
+EXCESS_CUPTI_LD_COMMAND:=-lcupti
+endif
+endif
+# }}}
+
+#NVML
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring NVML,$(MODULE_LOAD)))
+EXCESS_NVML_PATH:=/home/lu/Documents/Software/Nvidia/NVML/tdk_5.319.85/NVML
+EXCESS_NVML_INC_PATH:=$(EXCESS_NVML_PATH)/include
+EXCESS_NVML_LD_PATH:=$(EXCESS_NVML_PATH)/lib64
+EXCESS_NVML_LD_COMMAND:=-lnvidia-ml
+endif
+endif
+# }}}
+#FERMI
+# {{{
+ifeq ($(MACHINE_NAME),FERMI)
+ifneq (,$(findstring NVML,$(MODULE_LOAD)))
+FERMI_NVML_PATH:=/home/luli/Documents/Software/Nvidia/NVML/tdk_3.304.5/nvml
+FERMI_NVML_INC_PATH:=$(FERMI_NVML_PATH)/include
+FERMI_NVML_LD_PATH:=$(FERMI_NVML_PATH)/lib64
+#FERMI_NVML_LD_PATH:=/usr/lib64
+FERMI_NVML_LD_COMMAND:=-lnvidia-ml
+endif
+endif
+# }}}
+
+#PCM
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring PCM,$(MODULE_LOAD)))
+PCM_SRC:=/home/lu/Documents/Software/PCM/2.8/IntelPerformanceCounterMonitorV2.8
+EF+=$(PCM_SRC)/cpucounters.cpp $(PCM_SRC)/msr.cpp $(PCM_SRC)/pci.cpp $(PCM_SRC)/client_bw.cpp
+EXCESS_PCM_INC_PATH:=$(PCM_SRC)
+#RP+=sudo
+endif
+endif
+#EXCESS_PCM_LD_PATH:=$(EXCESS_PCM_PATH)/intelpcm.so
+#EXCESS_PCM_LD_COMMAND:=-lintelpcm
+# }}}
+
+#WATTSUP_ENERGY
+# {{{
+ifeq ($(MACHINE_NAME),M4800)
+ifneq (,$(findstring WATTSUP_ENERGY,$(MODULE_LOAD)))
+WATTSUP_ENERGY_SRC:=../..
+EF+=$(WATTSUP_ENERGY_SRC)/lib/wattsup.c
+M4800_WATTSUP_ENERGY_INC_PATH:=$(WATTSUP_ENERGY_SRC)/include
+RP+=sudo
+endif
+endif
+# }}}
+
+#OpenMP
+#EXCESS
+# {{{
+#ifeq ($(MACHINE_NAME), EXCESS)
+ifneq (,$(findstring OPENMP,$(MODULE_LOAD)))
+
+#EXCESS_OPENMP_INC_COMMAND=-Xcompiler -fopenmp
+#EXCESS_OPENMP_LD_COMMAND:=-Xcompiler -fopenmp
+NVCC_CFLAGS+=-Xcompiler -fopenmp
+NVCC_LDFLAGS+=-Xcompiler -fopenmp
+
+CXX_CFLAGS+=-fopenmp
+CXX_LDFLAGS+=-fopenmp
+
+CFLAGS+=-fopenmp
+LDFLAGS+=-fopenmp
+
+endif
+#endif
+# }}}
+
+#OpenMP
+#TRIOLITH
+# {{{
+ifeq ($(MACHINE_NAME), TRIOLITH)
+ifneq (,$(findstring OPENMP,$(MODULE_LOAD)))
+TRIOLITH_OPENMP_INC_COMMAND:=-openmp
+TRIOLITH_OPENMP_LD_COMMAND:=-openmp
+MY_C_COMPILER:=icc
+endif
+endif
+# }}}
+
+#MPI
+#TRIOLITH
+# {{{
+ifeq ($(MACHINE_NAME), TRIOLITH)
+ifneq (,$(findstring MPI,$(MODULE_LOAD)))
+TRIOLITH_MPI_LD_COMMAND=-Nmpi
+TRIOLITH_MPI_INC_COMMAND=-Nmpi
+MY_C_COMPILER=icc
+endif
+endif
+# }}}
+
+#Pthread
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring PTHREAD,$(MODULE_LOAD)))
+EXCESS_PTHREAD_LD_COMMAND:=-lpthread
+endif
+endif
+# }}}
+#FERMI
+# {{{
+ifeq ($(MACHINE_NAME),FERMI)
+ifneq (,$(findstring PTHREAD,$(MODULE_LOAD)))
+FERMI_PTHREAD_LD_COMMAND:=-lpthread
+endif
+endif
+# }}}
+
+#CXX_PTHREAD
+#EXCESS
+# {{{
+#ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(filter $(MACHINE_NAME),EXCESS M4800))
+ifneq (,$(findstring CXX_PTHREAD,$(MODULE_LOAD)))
+EXCESS_CXX_PTHREAD_LD_COMMAND:=-pthread
+M4800_CXX_PTHREAD_LD_COMMAND:=-pthread
+endif
+endif
+# }}}
+
+#R
+#THINKPAD
+# {{{
+ifeq ($(MACHINE_NAME),THINKPAD)
+ifneq (,$(findstring R,$(MODULE_LOAD)))
+THINKPAD_R_INC_PATH:=/usr/share/R/include
+THINKPAD_R_LDFLAGS:=/usr/lib/R/lib
+THINKPAD_R_LD_COMMAND:=-lR
+endif
+endif
+# }}}
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring R,$(MODULE_LOAD)))
+EXCESS_R_INC_PATH:=/usr/share/R/include
+EXCESS_R_LDFLAGS:=/usr/lib/R/lib
+EXCESS_R_LD_COMMAND:=-lR # -lblas -llapack
+endif
+endif
+# }}}
+
+
+#Rcpp
+#THINKPAD
+# {{{
+ifeq ($(MACHINE_NAME),THINKPAD)
+ifneq (,$(findstring RCPP,$(MODULE_LOAD)))
+THINKPAD_RCPP_INC_PATH:=/home/lu/R/x86_64-pc-linux-gnu-library/3.0/Rcpp/include
+THINKPAD_RCPP_LD_PATH:=/home/lu/R/x86_64-pc-linux-gnu-library/3.0/Rcpp/libs 
+endif
+endif
+# }}}
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring RCPP,$(MODULE_LOAD)))
+EXCESS_RCPP_PATH:=/usr/local/lib/R/site-library/Rcpp
+EXCESS_RCPP_INC_PATH:=$(EXCESS_RCPP_PATH)/include
+EXCESS_RCPP_LD_PATH:=$(EXCESS_RCPP_PATH)/libs
+#EXCESS_RCPP_LD_COMMAND:=-lRcpp
+endif
+endif
+# }}}
+
+#RInside
+#THINKPAD
+# {{{
+ifeq ($(MACHINE_NAME),THINKPAD)
+ifneq (,$(findstring RINSIDE,$(MODULE_LOAD)))
+THINKPAD_RINSIDE_INC_PATH:= /home/lu/R/x86_64-pc-linux-gnu-library/3.0/RInside/include/
+THINKPAD_RINSIDE_LD_PATH:= /home/lu/R/x86_64-pc-linux-gnu-library/3.0/RInside/libs/
+THINKPAD_RINSIDE_LD_COMMAND:= -lRInside
+endif
+endif
+# }}}
+#EXCESS
+# {{{
+ifeq ($(MACHINE_NAME),EXCESS)
+ifneq (,$(findstring RINSIDE,$(MODULE_LOAD)))
+EXCESS_RINSIDE_PATH:= /usr/local/lib/R/site-library/RInside
+EXCESS_RINSIDE_INC_PATH:= $(EXCESS_RINSIDE_PATH)/include/
+EXCESS_RINSIDE_LD_PATH:= $(EXCESS_RINSIDE_PATH)/libs
+EXCESS_RINSIDE_LD_COMMAND:= -lRInside
+#EL+:=-Wl,-rpath,/usr/local/lib/R/site-library/RInside/lib
+endif
+endif
+# }}}
+
+
+#Pact all library cflags and ldflags in new ways
+#Calculate MODULE ENABLING FLAGS
+MODULE_ENABLE_FLAGS:=$(addprefix -DENABLE_,$(MODULE_LOAD))
+#Calculate INCLUDE PATHs
+MODULE_ALL_INCLUDE_PATH:=$(addsuffix _INC_PATH, $(MODULE_LOAD))
+MODULE_ALL_INCLUDE_PATH_WITH_MACHINE_NAME:=$(addprefix $(MACHINE_NAME)_, $(MODULE_ALL_INCLUDE_PATH))
+MODULE_CFLAGS_BEFORE_WRAP_MINUS_I:=$(foreach module, $(MODULE_ALL_INCLUDE_PATH_WITH_MACHINE_NAME), $($(module)))
+MODULE_CFLAGS_BEFORE_ENABLE_FLAGS:=$(addprefix -I, $(MODULE_CFLAGS_BEFORE_WRAP_MINUS_I))
+MODULE_CFLAGS:=$(MODULE_ENABLE_FLAGS) $(MODULE_CFLAGS_BEFORE_ENABLE_FLAGS)
+#Calculate INCLUDE Commands
+MODULE_ALL_INC_COMMAND:=$(addsuffix _INC_COMMAND, $(MODULE_LOAD))
+MODULE_ALL_INC_COMMAND_WITH_MACHINE_NAME:=$(addprefix $(MACHINE_NAME)_, $(MODULE_ALL_INC_COMMAND))
+MODULE_ALL_INC_COMMAND_AFTER_EXPANSION:=$(foreach cmd,$(MODULE_ALL_INC_COMMAND_WITH_MACHINE_NAME), $($(cmd)))
+MODULE_CFLAGS_NEW:=$(MODULE_CFLAGS) $(MODULE_ALL_INC_COMMAND_AFTER_EXPANSION)
+#Calculate LD PATHs 
+MODULE_ALL_LD_PATH:=$(addsuffix _LD_PATH, $(MODULE_LOAD))
+MODULE_ALL_LD_PATH_WITH_MACHINE_NAME:=$(addprefix $(MACHINE_NAME)_, $(MODULE_ALL_LD_PATH))
+MODULE_LDFLAGS_BEFORE_WRAP_MINUS_L:=$(foreach module, $(MODULE_ALL_LD_PATH_WITH_MACHINE_NAME), $($(module)))
+MODULE_LDFLAGS_AFTER_WRAP_MINUS_L:=$(addprefix -L, $(MODULE_LDFLAGS_BEFORE_WRAP_MINUS_L))
+#Calculate LD Commands 
+MODULE_ALL_LD_COMMAND:=$(addsuffix _LD_COMMAND, $(MODULE_LOAD))
+MODULE_ALL_LD_COMMAND_WITH_MACHINE_NAME:=$(addprefix $(MACHINE_NAME)_, $(MODULE_ALL_LD_COMMAND))
+MODULE_ALL_LD_COMMAND_AFTER_EXPANSION:=$(foreach cmd,$(MODULE_ALL_LD_COMMAND_WITH_MACHINE_NAME), $($(cmd)))
+MODULE_LDFLAGS_NEW:=$(MODULE_LDFLAGS_AFTER_WRAP_MINUS_L) $(MODULE_ALL_LD_COMMAND_AFTER_EXPANSION)
+#Calculate runtime LD Commands
+MODULE_LDFLAGS_AFTER_WRAP_COLEN:=$(addprefix :, $(MODULE_LDFLAGS_BEFORE_WRAP_MINUS_L))
+#SPACE:=
+#SPACE+=
+MODULE_LDFLAGS_AFTER_WRAP_COLEN_REMOVE_SPACE:=$(subst $(SPACE),,$(MODULE_LDFLAGS_AFTER_WRAP_COLEN))
+LD_LIBRARY_PATH+=$(MODULE_LDFLAGS_AFTER_WRAP_COLEN_REMOVE_SPACE)
+
+ifeq ($(NO_WARNINGS),true)
+WARNING_CHECKING_FLAGS_BEFORE_CXX:=
+WARNING_CHECKING_FLAGS_BEFORE_CU:=
+else
+WARNING_CHECKING_FLAGS_BEFORE_CXX:=-Wall -Wextra -Wpedantic -Wconversion -Wno-variadic-macros -fmax-errors=2 -fno-rtti
+ifeq ($(TARGET_EXT),cu)
+WARNING_CHECKING_FLAGS_BEFORE_CU:=--compiler-options -Wall --compiler-options -Wextra --compiler-options -Wconversion --compiler-options -fmax-errors=1 --compiler-options -fno-rtti 
+#--compiler-options -fdiagnostics-color=always
+#--compiler-options -Wpedantic 
+endif
+endif
+
+#-fno-rtti will incur two warnings, but seems invitable, --x c++ will disable it, but we are working with cuda 
+
+ifeq ($(ENABLE_RTTI),true)
+ifeq ($(TARGET_EXT),cu)
+WARNING_CHECKING_FLAGS_CU := $(subst --compiler-options -fno-rtti,,$(WARNING_CHECKING_FLAGS_BEFORE_CU))
+else
+WARNING_CHECKING_FLAGS_CXX := $(subst -fno-rtti,,$(WARNING_CHECKING_FLAGS_BEFORE_CXX))
+endif
+else
+WARNING_CHECKING_FLAGS_CU := $(WARNING_CHECKING_FLAGS_BEFORE_CU)
+WARNING_CHECKING_FLAGS_CXX := $(WARNING_CHECKING_FLAGS_BEFORE_CXX)
+endif
+
+#ifeq ($(USE_DEFAULT_OPT_LEVEL),true)
+#ifeq ($(DEBUG),true)
+#OPTIMIZATION_LEVEL:=-O0
+#else
+#OPTIMIZATION_LEVEL:=-O3
+#endif
+#endif
+
+OPTIMIZATION_FOR_PROCESSOR:=-march=native
+
+CPP_STANDARD?=c++14
+
+USR_INC_SEARCH_PATH_CMD:=$(addprefix -I, $(USR_INC_SEARCH_PATH))
+
+CFLAGS += $(WARNING_CHECKING_FLAGS_CXX) -std=c99 $(OPTIMIZATION_FOR_PROCESSOR) $(OPTIMIZATION_LEVEL) $(MODULE_CFLAGS_NEW) -I . $(USR_INC_SEARCH_PATH_CMD) $(EC) $(ECD) $(PARAMS)
+LDFLAGS += $(OPTIMIZATION_LEVEL) $(WARNING_CHECKING_FLAGS_CXX) $(OPTIMIZATION_FOR_PROCESSOR) $(MODULE_LDFLAGS_NEW) $(EL)
+
+CXX_CFLAGS += $(WARNING_CHECKING_FLAGS_CXX)  -fdiagnostics-color=always -fmessage-length=0 -std=$(CPP_STANDARD) $(OPTIMIZATION_FOR_PROCESSOR) $(OPTIMIZATION_LEVEL) $(MODULE_CFLAGS_NEW) -I . $(USR_INC_SEARCH_PATH_CMD) $(EC) $(ECD) $(PARAMS) 
+CXX_LDFLAGS += $(OPTIMIZATION_LEVEL) $(WARNING_CHECKING_FLAGS_CXX) $(OPTIMIZATION_FOR_PROCESSOR) $(MODULE_LDFLAGS_NEW) $(EL)
+
+#NVCC_COMMON:= -gencode arch=compute_30,code=sm_30 $(OPTIMIZATION_LEVEL) $(WARNING_CHECKING_FLAGS_CU) $(ECD) -std=c++11
+COMPUTE_CAPABILITY_VAR:=$(MACHINE_NAME)_COMPUTE_CAPABILITY
+COMPUTE_CAPABILITY:=$($(COMPUTE_CAPABILITY_VAR))
+NVCC_COMMON:= $(COMPUTE_CAPABILITY) $(OPTIMIZATION_LEVEL) $(WARNING_CHECKING_FLAGS_CU) $(ECD) -std=c++11 --expt-extended-lambda
+NVCC_CFLAGS += $(NVCC_COMMON) $(MODULE_CFLAGS_NEW) -I . $(USR_INC_SEARCH_PATH_CMD) $(EC) $(PARAMS)
+NVCC_LDFLAGS += $(NVCC_COMMON) $(MODULE_LDFLAGS_NEW) $(EL)
+#CFLAGS += -Werror -Wall -Wextra
+# }}}
+
+#Internal variable
+# {{{
+
+#Use for filter space away
+SPACE:=
+SPACE+=
+
+TYPE_NO_SPACE:=$(subst $(SPACE),,$(TYPE))
+TYPE:=$(TYPE_NO_SPACE)
+
+
+#ALL_FILES:=$(wildcard *.$(TARGET_EXT)) $(EF)
+ALL_FILES_BEFORE_FILTER=$(shell find . -name "*.$(TARGET_EXT)") $(EF)
+ALL_FILES_BEFORE_FILTER_REMOVE_DOT=$(subst ./,,$(ALL_FILES_BEFORE_FILTER))
+ALL_FILES=$(filter-out $(EXCLUDE_SRC_FILES),$(ALL_FILES_BEFORE_FILTER_REMOVE_DOT))
+#ALL_FILES=$(filter-out $(EXCLUDE_SRC_FILES),$(ALL_FILES_BEFORE_FILTER))
+
+#ALL_OBJECTS:=$(ALL_FILES:.$(TARGET_EXT)=.o)
+#in case you have multiple kinds of source, e.g. cu and cpp
+ALL_OBJECTS:=$(addsuffix .o,$(basename $(ALL_FILES)) )
+
+ifdef TARGET_EXT
+ifeq ($(TARGET_EXT),R)
+ALL_R_FILES:=$(shell ls *.$(TARGET_EXT))
+R_LIB_FILE:=Lu_R_Lib.R
+TARGET?=$(filter-out $(R_LIB_FILE),$(ALL_R_FILES))
+endif
+endif
+
+ifdef TARGET_EXT
+ifeq ($(TARGET_EXT),sh)
+ALL_BASH_FILES:=$(shell ls *.$(TARGET_EXT))
+BASH_LIB_FILE:=Lu_Bash_Lib.sh
+TARGET?=$(filter-out $(BASH_LIB_FILE),$(ALL_BASH_FILES))
+endif
+endif
+
+ifdef TARGET_EXT
+ifeq ($(TARGET_EXT),py)
+ALL_PYTHON_FILES:=$(shell ls *.$(TARGET_EXT))
+PYTHON_LIB_FILE:=Lu_Python_Lib.py
+TARGET1=$(filter-out $(PYTHON_LIB_FILE),$(ALL_PYTHON_FILES))
+TARGET=$(filter-out $(EXCLUDE_SRC_FILES),$(TARGET1))
+endif
+endif
+
+
+ifdef TARGET_EXT
+ifeq ($(TARGET_EXT),$(filter $(TARGET_EXT),cpp c cu))
+
+ifeq ($(TYPE),bin)
+TARGET?=$(OUTPUT_DIR)compile_output$(COMPILER_OUTPUT_SUFFIX)
+endif
+
+ifeq ($(TYPE),static)
+TARGET?=$(OUTPUT_DIR)lib$(LIB_NAME)$(COMPILER_OUTPUT_SUFFIX).a
+LIB_HEADER_UNINSTALL_DIR=$(LIB_HEADER_INSTALL_ROOT_DIR)/$(LIB_NAME)
+LIB_BIN_UNINSTALL_DIR=$(LIB_BIN_INSTALL_ROOT_DIR)/$(LIB_NAME)
+LIB_HEADER_INSTALL_DIR=$(LIB_HEADER_UNINSTALL_DIR)/include
+LIB_BIN_INSTALL_DIR=$(LIB_BIN_UNINSTALL_DIR)/lib
+endif
+
+endif
+endif
+
+
+TAGS:=tags
+
+#CPPCHECK_COMMAND must have a default value, otherwise only $< is in command line
+#you will get HelloWorld.cpp is not a command error
+CPPCHECK_COMMAND:=echo "omit cppcheck" 
+
+#----------------------------------------------------------------------------------#
+
+ifneq ($(DEBUG),)
+
+ifeq ($(TARGET_EXT),cpp)
+EC+= -ggdb3 -O0 #consider -Og
+EL+= -ggdb3 -O0
+else ifeq ($(TARGET_EXT),cu)
+EC+= -g -G -lineinfo
+endif
+
+else ifeq ($(PROFILE),true)
+	#EC+=-O1 
+	#EL+=-O1 
+	#EC+= -fdata-sections -ffunction-sections -O3 
+	#EL+= -fdata-sections -ffunction-sections -O3 
+	EC+= -fno-inline -O0 
+	EL+= -fno-inline -O0 
+else ifeq ($(NO_OPTIMIZATION),true)
+	EC+= -O0
+	EL+= -O0
+else
+EC+= -O2
+EL+= -O2
+endif
+
+#ifdef DEBUG
+ifeq ($(DEBUG),BATCH)
+#ggdb3: persever MACRO information for debugging
+#EC+= -ggdb3
+#RUN_GDB:=gdb --batch --command=test.gdb --args ./$(TARGET) $(ERP)
+RUN_GDB:=gdb --batch  --args ./$(TARGET) $(ERP)
+else ifeq ($(DEBUG), INTERACTIVE)
+#EC+= -ggdb3
+#RUN_GDB:=gdb -x test.gdb -tui --args ./$(TARGET) $(ERP) #use for detect infinite loop
+#RUN_GDB:=cgdb -x test.gdb --args ./$(TARGET) $(ERP) 
+RUN_GDB:=LC_NUMERIC=C cgdb --args ./$(TARGET) $(ERP) #LC_NUMERIC=C to make floating point number work in gdb
+#RUN_GDB:=gdb -x test.gdb --args ./$(TARGET) $(ERP)
+else ifeq ($(DEBUG), BACK_TRACE)
+#EC+= -ggdb3
+RUN_GDB:=gdb -batch -ex "run" -ex "bt" --args ./$(TARGET) $(ERP) 2>&1 | sed -n -e '/Program received/,$$p' | grep '\#0' | cut -d "/" -f 2
+else
+ ifeq ($(NO_STRIP),true)
+ POST_PROCESSING:=
+ else
+ POST_PROCESSING:=strip $(TARGET)
+ endif
+
+ #ifdef NO_CPPCHECK
+ ifeq ($(NO_CPPCHECK),true)
+
+ else
+ CPPCHECK_COMMAND:=cppcheck --error-exitcode=1
+ endif
+ #endif
+
+endif
+#endif
+
+
+ifeq ($(PROFILE),true)
+	EC+=-pg
+	EL+=-pg
+	POST_PROCESSING:=
+	APP_FILES+=gmon.out
+endif
+
+
+ifeq ($(TARGET_EXT),cu)
+ifeq ($(NO_CUDA_MEMCHECK),true)
+CUDA_MEMCHECK_CMD:=
+else
+CUDA_MEMCHECK_CMD:=cuda-memcheck ./$(TARGET) $(ERP)
+endif
+endif
+
+#----------------------------------------------------------------------------------#
+
+
+# }}}
+
+#Compilation rules for file types
+# {{{
+#Rules to compile object files of their type
+
+	#$(MY_CXX_COMPILER) -c $(CXX_CFLAGS) $< -o $@ 2>&1 | TextFilt $$EXTFILT_RULESET_DIR/base.rs $$EXTFILT_RULESET_DIR/stl.rs && [ $${PIPESTATUS[0]} -eq 0 ]
+	#$(MY_CXX_COMPILER) -c $(CXX_CFLAGS) $< -o $@ 2>&1 | TextFilt $$EXTFILT_RULESET_DIR/base.rs $$EXTFILT_RULESET_DIR/stl.rs 
+%.o:%.cpp
+	$(MY_CXX_COMPILER) -c $(CXX_CFLAGS) $< -o $@ 2>&1 
+	@$(CPPCHECK_COMMAND) $<
+
+%.o:%.c
+	$(MY_C_COMPILER) -c $(CFLAGS) $< -o $@
+	@$(CPPCHECK_COMMAND) $<
+
+%.o:%.cu
+	$(MY_CUDA_COMPILER) -c $(NVCC_CFLAGS) $< -o $@
+	@$(CPPCHECK_COMMAND) $<
+
+#Rules to link object files
+ifeq ($(TARGET_EXT), cu)
+$(TARGET):$(ALL_OBJECTS)
+	$(MY_CUDA_COMPILER) $^ -o $@ $(NVCC_LDFLAGS)
+	$(POST_PROCESSING)
+	$(CUDA_MEMCHECK_CMD)
+
+gdb:
+	@make --no-print-directory
+	$(RP) cgdb -d cuda-gdb --command=.gdbinit --args ./$(TARGET) $(ERP)
+	-@make allclean --no-print-directory
+
+nvvp:
+	nvvp ./$(TARGET)
+endif
+
+ifeq ($(TARGET_EXT), cpp)
+ifeq ($(TYPE), bin)
+$(TARGET):$(ALL_OBJECTS)
+	$(MY_CXX_COMPILER) $^ -o $@ $(CXX_LDFLAGS)
+	$(POST_PROCESSING)
+
+	#MALLOC_CHECK_=2 $(RUN_GDB)
+gdb:
+	@make allclean --no-print-directory
+	@make --no-print-directory
+	MALLOC_CHECK_=2 $(RUN_GDB)
+	-@make allclean  --no-print-directory
+endif
+
+ifeq ($(PROFILE),true)
+gprof:
+	@make --no-print-directory
+	./$(TARGET)
+	gprof $(TARGET) gmon.out | vim -
+endif
+	
+
+
+#you can not apply strip on static library,
+#otherwise you have an "Archive has no index" error when linking to it
+#runlib can not recover the index removed by "strip"
+ifeq ($(TYPE),static)
+$(TARGET):$(ALL_OBJECTS)
+	ar rcs $@ $^
+endif
+endif
+
+#if you want to do a shared object libraries
+	#use -fvisibility=default
+	#Using this feature can very substantially improve linking and load times of shared object libraries, produce more optimized code, provide near-perfect API export and prevent symbol clashes. It is strongly recommended that you use this in any shared objects you distribute.
+
+ifeq ($(TARGET_EXT), c)
+$(TARGET):$(ALL_OBJECTS)
+	$(MY_C_COMPILER) $^ -o $@ $(LDFLAGS)
+	$(POST_PROCESSING)
+
+gdb:
+	@make allclean  --no-print-directory
+	@make  --no-print-directory
+	$(RUN_GDB)
+	-@make allclean  --no-print-directory
+endif
+# }}}
+
+#Abstration for targets
+# {{{
+ifeq ($(TARGET_EXT),R)
+# For scripting language like R
+# {{{
+
+# -@if [ -n "$(APP_FILES)"  ] && [ -f $(APP_FILES) ]; then rm $(APP_FILES) ; fi;
+
+run:
+	@$(RP) ./$(TARGET)
+
+clean:
+	-@rm -rf *.dat
+
+allclean:
+	-@rm -rf *.csv *.dat *.pdf
+
+cool:
+	@$(RP) ./$(TARGET)
+	@$(APP_VIEW_RESULT)
+	-@make clean > /dev/null 
+
+cool_new:
+	@if [ -f result_outlier_filtered.csv ]; then rm result_outlier_filtered.csv ; fi
+	@make cool --no-print-directory
+
+show:
+	@evince *.pdf
+# }}}
+else ifeq ($(TARGET_EXT),sh)
+# {{{
+
+# -@if [ -n "$(APP_FILES)"  ] && [ -f $(APP_FILES) ]; then rm $(APP_FILES) ; fi;
+
+run:
+	shellcheck ./$(TARGET)
+	@$(RP) ./$(TARGET)
+
+allclean:
+	-@rm -rf $(APP_FILES) $(APP_FILE1) $(APP_FILE2)
+
+
+cool:
+	shellcheck ./$(TARGET)
+	@$(RP) ./$(TARGET)
+	@$(APP_VIEW_RESULT)
+	-@make allclean > /dev/null 
+
+cool_new:
+	@if [ -f result_outlier_filtered.csv ]; then rm result_outlier_filtered.csv ; fi
+	@make cool --no-print-directory
+
+show:
+	@$(APP_VIEW_RESULT)
+# }}}
+else ifeq ($(TARGET_EXT),py)
+# For scripting language like Python
+# {{{
+run:
+	@$(RP) ./$(TARGET)
+
+cool:
+	@make run --no-print-directory
+# }}}
+else ifeq ($(TARGET_EXT),dot)
+# For generate graph from dot format
+# {{{
+run:
+	@dot  $(ALL_FILES) -Tsvg > $(ALL_FILES:.$(TARGET_EXT)=.svg)
+
+show:
+	#@eog $(ALL_FILES:.$(TARGET_EXT)=.svg)
+	xdot $(ALL_FILES)
+
+allclean:
+	@-rm $(ALL_FILES:.$(TARGET_EXT)=.svg)
+
+cool:
+	@make run --no-print-directory
+	@make show --no-print-directory
+	@make allclean --no-print-directory
+# }}}
+else
+# For compilation language like C++
+# {{{
+compile:$(TARGET)
+
+
+#$(TARGET):$(ALL_OBJECTS)
+
+clean:
+	-@rm $(ALL_OBJECTS) > /dev/null 2>&1  
+
+run:
+	@$(RP) ./$(TARGET) $(ERP)
+
+show:
+	@$(APP_VIEW_RESULT)
+
+allclean:
+	-@rm $(ALL_OBJECTS) $(TARGET) $(APP_FILES) $(APP_FILE1) $(APP_FILE2)
+	-@if [ -f $(TAGS) ]; then rm $(TAGS) ; fi;
+
+depend:
+	> Makefile.depend
+	makedepend $(USR_INC_SEARCH_PATH_CMD) -Y -m -fMakefile.depend $(ALL_FILES)
+	rm Makefile.depend.bak
+	if [ "`tail -1 Makefile`" != "include Makefile.depend" ]; then echo "include Makefile.depend" >> Makefile; fi
+
+#ERP: Extra Runtime Parameters
+#ERPS: Extra Runtime Parameters by System, the user should not use this flag
+# @cppcheck $(ALL_FILES) 2>&1 --error-exitcode=1 | sed -e 's/^\[//g' | sed -e 's/\]:/:/g'
+cool:
+	-@make allclean > /dev/null 
+	@make compile --no-print-directory
+	@echo 
+	@$(RP) ./$(TARGET) $(ERP) $(ERPS)
+	@$(PLOT)
+	@$(APP_VIEW_RESULT)
+	-@make allclean > /dev/null 
+
+cool_cout:
+	@ERPS="2>/dev/null" make cool --no-print-directory
+
+cool_cout_file:
+	@mkdir -p 1.Data_Plot
+	@ERPS=">1.Data_Plot/result.csv" make cool --no-print-directory 
+	
+cool_cerr:
+	@ERPS=">/dev/null" make cool --no-print-directory
+
+clang:
+	clang++ -x c++ -std=c++11 -Wall -Wextra -Werror -Wpedantic -fsyntax-only *.cpp
+
+static_check:
+	@cppcheck $(ALL_FILES) --error-exitcode=1 2>&1 | sed -e 's/^\[//g' | sed -e 's/\]:/:/g'
+	@clang-check -analyze $(ALL_FILES) --
+
+current_file:
+	@cppcheck $(CURRENT_FILE) --error-exitcode=1 2>&1 | sed -e 's/^\[//g' | sed -e 's/\]:/:/g'
+
+valgrind:
+	@make compile --no-print-directory
+	@echo 
+	valgrind --leak-check=full -v ./$(TARGET) $(ERP)
+	-@make allclean > /dev/null
+
+
+strace:
+	@make --no-print-directory
+	strace ./$(TARGET)
+	@make allclean --no-print-directory
+
+#I use strace to watch what my software is doing on a system call level. This lets me clean up really stupid code that calls time(0) four times in a row or makes too many calls to poll() or non-blocking read() or things like calling read() on a socket to read 1 byte at a time. (That is super inefficient and lazy!)
+
+#use "objdump -d somefile.o" to inspect assembly code
+	#I use objdump -d to inspect the machine code, especially for performance sensitive inner loops. That is how I find things like the slowness of the array index operator on strings compared to using iterators.
+
+
+profile:
+	@make allclean --no-print-directory
+	@make --no-print-directory
+	@perf record ./$(TARGET) && perf report && rm perf.data
+	@make allclean --no-print-directory
+
+#profiling tools
+	# perf >> oprofile > gprof 
+	# I use oprofile to try to find hot spots in optimized code, I find that it often works a little better than gprof, and it can do things like look for data and instruction cache misses. That can show you where to drop some helpful prefetch hints using GCC's __builtin_prefetch. I tried to use it to find hot mis-predicted branches as well, but couldn't get that to work for me.
+	#Update: I've found that perf works way better than oprofile. At least on Linux. Learn to use perf and love it as I do.
+
+#debuger: ddd, obselete
+#ECD: Extra Cflag for Debugging
+debug:
+	@make allclean --no-print-directory
+	@make --no-print-directory ECD=-g   #overwrite works good, but add sth is difficult.
+	ddd ./$(TARGET)
+	@make allclean --no-print-directory
+
+ctags:
+	ctags -R --sort=1 --c++-kinds=+p --fields=+iaS --extra=+q --language-force=C++ -f $(TAGS)
+
+ifeq ($(TYPE),static)
+
+install_test:
+	@echo make compile --no-print-directory
+	@echo mkdir -p $(LIB_HEADER_INSTALL_DIR)
+	@echo mkdir -p $(LIB_BIN_INSTALL_DIR)
+	@echo cp $(LIB_HEADER) $(LIB_HEADER_INSTALL_DIR)
+	@echo cp $(TARGET) $(LIB_BIN_INSTALL_DIR)
+
+install:
+	@make compile --no-print-directory
+	@mkdir -p $(LIB_HEADER_INSTALL_DIR)
+	@mkdir -p $(LIB_BIN_INSTALL_DIR)
+	@cp $(LIB_HEADER) $(LIB_HEADER_INSTALL_DIR)
+	@cp $(TARGET) $(LIB_BIN_INSTALL_DIR)
+
+uninstall_test:
+	@echo rm -rf $(LIB_HEADER_UNINSTALL_DIR)
+	@echo rm -rf $(LIB_BIN_UNINSTALL_DIR)
+
+uninstall:
+	-@rm -rf $(LIB_HEADER_UNINSTALL_DIR)
+	-@rm -rf $(LIB_BIN_UNINSTALL_DIR)
+endif
+
+# }}}
+endif
+
+
+ifeq ($(TARGET_EXT),R)
+debug_makefile:
+	@echo R
+else ifeq ($(TARGET_EXT),py)
+debug_makefile:
+	@echo py
+else
+debug_makefile:
+	@echo $(MODULE_LOAD)
+	@echo $(MACHINE_NAME)
+	@echo $(M4800_SOCI_LD_COMMAND)
+endif
+
+
+
+# }}}
+
+#Some Makefile knowledge:
+# {{{
+
+#Variable assignment:
+# {{{
+#VARIABLE = value
+#Normal setting of a variable - values within it are recursively expanded when the variable is used, not when it's declared
+
+#VARIABLE := value
+#Setting of a variable with simple expansion of the values inside - values within it are expanded at declaration time.
+
+#VARIABLE ?= value
+#Setting of a variable only if it doesn't have a value
+
+#VARIABLE += value
+#Appending the supplied value to the existing value (or setting to that value if the variable didn't exist)
+# }}}
+
+# }}}
